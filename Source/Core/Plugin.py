@@ -28,7 +28,7 @@ def GetSettings():
 
 def ShowMessage(message):
 	sublime.status_message("SublimePapyrus - %s" % message)
-		
+
 def SetStatus(view, key, value):
 	view.set_status(key, value)
 
@@ -203,12 +203,33 @@ class SublimePapyrusOpenScriptCommand(sublime_plugin.WindowCommand):
 # Build system
 class SublimePapyrusCompileScriptCommand(sublime_plugin.WindowCommand):
 	def run(self, **args):
+		try:
+			if PYTHON_VERSION[0] == 2:
+				import _winreg as winreg
+			elif PYTHON_VERSION[0] >= 3:
+				import winreg
+		except:
+			pass
+		PapyrusMakeCommand=None
+		try:
+			with winreg.ConnectRegistry(None,winreg.HKEY_CLASSES_ROOT) as conn:
+				with winreg.OpenKey(conn, r"papyrusscript\\shell\\Compile\\command") as key:
+					PapyrusMakeCommand = winreg.QueryValueEx(key,r"")[0]
+		except:
+			pass
 		file = args["cmd"]
 		filePath, fileName = os.path.split(file)
 		regex = args["file_regex"]
 		module = args["module"]
 		batch = args.get("batch", False)
 		settings = GetSettings()
+		if PapyrusMakeCommand:
+			actual_command=PapyrusMakeCommand[:-2]
+			actual_command+=file
+			actual_command+=" --batch"
+			args = {"cmd": actual_command, "file_regex": regex}
+			self.window.run_command("exec", args)
+			return
 		if settings:
 			modules = settings.get("modules", None)
 			if modules:
